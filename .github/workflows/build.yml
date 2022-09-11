@@ -1,0 +1,60 @@
+
+name: Build Release and Push to DockerHub
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+
+  release:
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_HUB_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
+      DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+      DOCKER_HUB_REPOSITORY: q3-spinup-dpmaster
+      IMAGE_TAG: latest
+
+    steps:
+
+    # Checkout repo
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+
+    # Create Release Tag
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        IMAGE_TAG: ${{ github.sha }}
+      with:
+        tag_name: ${{ github.run_id }}
+        release_name: Release ${{ github.sha }}
+        body: |
+          Automated Release
+            - ${{ github.repository }}
+            - ${{ github.ref }}
+            - ${{ github.sha }}
+        draft: false
+        prerelease: false
+
+    # Checkout repo
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+
+    # Install Docker
+    - name: Install Docker
+      uses: docker/setup-buildx-action@v1
+
+    # DockerHub auth
+    - name: Login to Docker
+      run: docker login --username=$DOCKER_HUB_USERNAME --password=$DOCKER_HUB_PASSWORD
+
+    # Build and tag image
+    - name: Build Image
+      run: docker build -t $DOCKER_HUB_USERNAME/$DOCKER_HUB_REPOSITORY:$IMAGE_TAG .
+
+    # Push image to DockerHub
+    - name: Push Image
+      run: docker push $DOCKER_HUB_USERNAME/$DOCKER_HUB_REPOSITORY:$IMAGE_TAG
